@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime
+import pytz
 import json
 
 app = FastAPI()
@@ -89,7 +90,8 @@ def save_order_json(order: OrderData):
 # 🧾 保存 TXT（小票格式）
 # ======================
 def save_order_txt(order: OrderData):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    tz = pytz.timezone("Europe/Rome")
+    now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
     line = "=" * 42
     dash = "-" * 42
 
