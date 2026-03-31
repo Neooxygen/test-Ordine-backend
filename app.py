@@ -40,7 +40,8 @@ class OrderData(BaseModel):
 # 🧾 小票打印
 # ======================
 def print_receipt(order: OrderData) -> None:
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    tz = pytz.timezone("Europe/Rome")
+    now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
     line = "=" * 42
     dash = "-" * 42
 
@@ -72,7 +73,8 @@ def print_receipt(order: OrderData) -> None:
 # ======================
 def save_order_json(order: OrderData):
     data = order.dict()
-    data["time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    tz = pytz.timezone("Europe/Rome")
+    data["time"] = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
     try:
         with open("orders.json", "r", encoding="utf-8") as f:
