@@ -21,6 +21,7 @@ app.add_middleware(
 
 ORDERS_JSON_FILE = "orders.json"
 ORDERS_TXT_FILE = "orders.txt"
+SERVICE_CALLS_FILE = "service_calls.json"
 
 
 @app.get("/")
@@ -56,6 +57,20 @@ class UpdateOrderStatus(BaseModel):
 class ClearTablePayload(BaseModel):
     table_no: str
 
+class ServiceCallPayload(BaseModel):
+    table_no: str
+
+
+class UpdateServiceCallStatus(BaseModel):
+    handled: bool
+
+
+class ServiceCallRecord(BaseModel):
+    id: str
+    table_no: str
+    time: str
+    handled: bool
+
 
 def get_now_str() -> str:
     tz = pytz.timezone("Europe/Rome")
@@ -79,6 +94,24 @@ def load_orders() -> List[dict]:
 def save_orders(orders: List[dict]) -> None:
     with open(ORDERS_JSON_FILE, "w", encoding="utf-8") as f:
         json.dump(orders, f, ensure_ascii=False, indent=2)
+
+def load_service_calls() -> List[dict]:
+    if not os.path.exists(SERVICE_CALLS_FILE):
+        return []
+
+    try:
+        with open(SERVICE_CALLS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return data
+            return []
+    except Exception:
+        return []
+
+
+def save_service_calls(calls: List[dict]) -> None:
+    with open(SERVICE_CALLS_FILE, "w", encoding="utf-8") as f:
+        json.dump(calls, f, ensure_ascii=False, indent=2)
 
 
 # ======================
@@ -266,3 +299,70 @@ def clear_table(payload: ClearTablePayload):
         "table_no": table_no,
         "changed_count": changed_count
     }
+
+# ======================
+# 👨‍🍳 呼叫服务员
+# ======================
+@app.post("/api/service-call")
+def create_service_call(payload: ServiceCallPayload):
+    table_no = payload.table_no.strip()
+
+    if not table_no:
+        raise HTTPException(status_code=400, detail="table_no 不能为空")
+
+    now = get_now_str()
+
+    calls = load_service_calls()
+
+    call_record = {
+        "id": str(uuid.uuid4())[:8],
+        "table_no": table_no,
+        "time": now,
+        "handled": False
+    }
+
+    calls.insert(0, call_record)
+    save_service_calls(calls)
+
+    return {
+        "success": True,
+        "message": f"{table_no}号桌已呼叫服务员",
+        "call": call_record
+    }
+
+
+# ======================
+# 📋 获取呼叫记录
+# ======================
+@app.get("/api/service-calls")
+def get_service_calls(handled: Optional[bool] = None):
+    calls = load_service_calls()
+
+    if handled is not None:
+        calls = [c for c in calls if c.get("handled") == handled]
+
+    return {
+        "success": True,
+        "calls": calls
+    }
+
+
+# ======================
+# ✅ 处理呼叫
+# ======================
+@app.patch("/api/service-calls/{call_id}")
+def update_service_call(call_id: str, payload: UpdateServiceCallStatus):
+    calls = load_service_calls()
+
+    for call in calls:
+        if call.get("id") == call_id:
+            call["handled"] = payload.handled
+            save_service_calls(calls)
+
+            return {
+                "success": True,
+                "message": "呼叫状态已更新",
+                "call": call
+            }
+
+    raise HTTPException(status_code=404, detail="呼叫记录不存在")
