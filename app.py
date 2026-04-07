@@ -53,6 +53,9 @@ class OrderRecord(BaseModel):
 class UpdateOrderStatus(BaseModel):
     status: str
 
+class ClearTablePayload(BaseModel):
+    table_no: str
+
 
 def get_now_str() -> str:
     tz = pytz.timezone("Europe/Rome")
@@ -233,3 +236,33 @@ def update_order_status(order_id: str, payload: UpdateOrderStatus):
             }
 
     raise HTTPException(status_code=404, detail="订单不存在")
+
+# ======================
+# 🧹 按桌号清台 / 结账完成
+# ======================
+@app.post("/api/clear-table")
+def clear_table(payload: ClearTablePayload):
+    table_no = payload.table_no.strip()
+
+    if not table_no:
+        raise HTTPException(status_code=400, detail="table_no 不能为空")
+
+    orders = load_orders()
+    changed_count = 0
+
+    for order in orders:
+        if (
+            str(order.get("table_no")) == str(table_no)
+            and order.get("status") != "done"
+        ):
+            order["status"] = "done"
+            changed_count += 1
+
+    save_orders(orders)
+
+    return {
+        "success": True,
+        "message": f"{table_no}号桌已结账完成",
+        "table_no": table_no,
+        "changed_count": changed_count
+    }
