@@ -229,18 +229,28 @@ def get_orders(status: Optional[str] = None):
 # ======================
 # 🔍 获取单个订单
 # ======================
-@app.get("/api/orders/{order_id}")
-def get_order(order_id: str):
+# ======================
+# 🗑 删除单个订单
+# ======================
+@app.delete("/api/orders/{order_id}")
+def delete_order(order_id: str):
     orders = load_orders()
 
-    for order in orders:
-        if order.get("id") == order_id:
-            return {
-                "success": True,
-                "order": order
-            }
+    new_orders = [
+        order for order in orders
+        if order.get("id") != order_id
+    ]
 
-    raise HTTPException(status_code=404, detail="订单不存在")
+    if len(new_orders) == len(orders):
+        raise HTTPException(status_code=404, detail="订单不存在")
+
+    save_orders(new_orders)
+
+    return {
+        "success": True,
+        "message": "订单已删除",
+        "order_id": order_id
+    }
 
 
 # ======================
